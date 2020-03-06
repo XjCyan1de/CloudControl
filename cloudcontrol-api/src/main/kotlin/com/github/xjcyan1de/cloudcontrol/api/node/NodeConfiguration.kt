@@ -7,6 +7,7 @@ import com.github.xjcyan1de.cloudcontrol.api.util.SystemStatistics
 import com.typesafe.config.ConfigFactory
 import io.github.config4k.extract
 import io.github.config4k.toConfig
+import java.net.InetAddress
 import java.util.*
 import kotlin.math.min
 import kotlin.properties.ReadWriteProperty
@@ -21,6 +22,7 @@ class NodeConfiguration(
         if (CLUSTER_ID != null) UUID.fromString(CLUSTER_ID!!) else UUID.randomUUID(),
         emptyList()
     ),
+    hostAddress: String = InetAddress.getLocalHost().hostAddress,
     maxCPUUsageToStartServices: Double = 100.0,
     parallelServiceStartSequence: Boolean = true,
     maxMemory: Int = (SystemStatistics.systemMemory / 1048576 - min(
@@ -34,6 +36,7 @@ class NodeConfiguration(
 ) {
     var identity by ConfigSaver(identity)
     var cluster by ConfigSaver(cluster)
+    var hostAddress by ConfigSaver(hostAddress)
     var maxCPUUsageToStartServices by ConfigSaver(
         maxCPUUsageToStartServices
     )

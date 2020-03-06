@@ -13,7 +13,7 @@ interface CloudService {
     val connectionKey: String
     var serviceInfoSnapshot: ServiceInfoSnapshot
     val lastServiceInfoSnapshot: ServiceInfoSnapshot
-    val process: Process
+    val process: Process?
     val configuredMaxHeapMemory: Int
 
     fun runCommand(commandLine: String)

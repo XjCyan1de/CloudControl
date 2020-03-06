@@ -44,6 +44,8 @@ object CloudControlNode : CloudControlDriver {
         File(tempDirectory, "caches").mkdir()
 
         Runtime.getRuntime().addShutdownHook(thread(name = "Shutdown Thread") { stop() })
+
+        mainLoop()
     }
 
     override fun stop() {
@@ -54,10 +56,13 @@ object CloudControlNode : CloudControlDriver {
 
     }
 
+    /**
+     * Главный цикл приложения, который выполняется 100 раз в секунду
+     */
     fun mainLoop() = runBlocking {
         var value = System.currentTimeMillis()
         val millis = 1000 / TPS.toLong()
-        var launchServicesTimer = 0
+        var launchServicesTimer = TPS
         val sendNodeUpdateTimer = 0 / 2
 
         while (true) {
@@ -86,6 +91,7 @@ object CloudControlNode : CloudControlDriver {
                     launchServicesTimer = 0
                 }
 
+                stopDeadServices()
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -117,6 +123,10 @@ object CloudControlNode : CloudControlDriver {
                 }
             }
         }
+    }
+
+    suspend fun stopDeadServices() {
+
     }
 
     fun ServiceTask.isCurrentLessLoadedNode(): Boolean {

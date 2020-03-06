@@ -15,7 +15,7 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-const val TPS = 10
+const val TPS = 1000
 val USER get() = System.getProperty("user.name")
 
 val LAUNCHER_SELECT_VERSION get() = System.getProperty("cloudcontrol.launcher.select.version", "1.0")
