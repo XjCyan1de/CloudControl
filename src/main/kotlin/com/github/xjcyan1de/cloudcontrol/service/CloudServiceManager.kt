@@ -4,38 +4,16 @@ import com.github.xjcyan1de.cloudcontrol.CloudControlNode
 import com.github.xjcyan1de.cloudcontrol.api.service.*
 import com.github.xjcyan1de.cloudcontrol.api.service.configuration.ConfigurationManager
 import com.github.xjcyan1de.cloudcontrol.api.service.configuration.ServiceConfiguration
-import com.github.xjcyan1de.cloudcontrol.api.service.configuration.toServiceConfiguration
+import com.github.xjcyan1de.cloudcontrol.api.util.PortResolver
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
-object CloudServiceManager : CloudServiceFactory, GeneralCloudServiceProvider, ServiceTaskProvider {
+object CloudServiceManager : GeneralCloudServiceProvider, ServiceTaskProvider {
     val serviceInfoSnapshotsMap = ConcurrentHashMap<UUID, ServiceInfoSnapshot>()
-    val cloudServicesMap = ConcurrentHashMap<UUID, CloudService>()
-    val localServicesMap = ConcurrentHashMap<UUID, CloudService>()
-
-    override suspend fun createCloudService(serviceTask: ServiceTask): ServiceInfoSnapshot {
-        val taskIds = serviceTask.getReservedTaskIds()
-        var taskId = 1
-
-        while (taskIds.contains(taskId)) {
-            taskId++
-        }
-
-        val serviceConfiguration = serviceTask.toServiceConfiguration(
-            ServiceId(
-                UUID.randomUUID(),
-                CloudControlNode.networkNodeConfiguration.identity.name,
-                serviceTask,
-                taskId,
-                serviceTask.processConfiguration.environment
-            )
-        )
-        return createCloudService(serviceConfiguration)
-    }
-
-    override suspend fun createCloudService(serviceConfiguration: ServiceConfiguration): ServiceInfoSnapshot {
-        return CloudService(serviceConfiguration).serviceInfoSnapshot
-    }
+    val cloudServicesMap = ConcurrentHashMap<UUID, JVMCloudService>()
+    val localServicesMap = ConcurrentHashMap<UUID, JVMCloudService>()
 
     override suspend fun getServicesUniqueIds(): Collection<UUID> =
         serviceInfoSnapshotsMap.keys
@@ -95,17 +73,65 @@ object CloudServiceManager : CloudServiceFactory, GeneralCloudServiceProvider, S
         TODO("Not yet implemented")
     }
 
-    fun getLocalCloudServices(): Collection<CloudService> = localServicesMap.values
+    fun getLocalCloudServices(): Collection<JVMCloudService> = localServicesMap.values
 
-    fun getLocalCloudServices(serviceTask: ServiceTask): Collection<CloudService> = localServicesMap.values.filter {
-        it.id.task == serviceTask
+    fun getLocalCloudServices(serviceTask: ServiceTask): Collection<JVMCloudService> = localServicesMap.values.filter {
+        it.serviceId.task == serviceTask
     }
 
-    suspend fun runTask(serviceTask: ServiceTask): CloudService {
-        TODO()
+    fun runTask(serviceTask: ServiceTask): JVMCloudService {
+        var taskId = 1
+        val reservedTaskIds = serviceTask.getReservedTaskIds()
+
+        while (reservedTaskIds.contains(taskId)) {
+            taskId++
+        }
+
+        val templates = ArrayList<ServiceTemplate>().apply { addAll(serviceTask.templates) }
+        val deployments = ArrayList<ServiceDeployment>().apply { addAll(serviceTask.deployments) }
+        val properties = HashMap<String, String>()
+
+        for (group in ConfigurationManager.groups) {
+            if (serviceTask.groups.contains(group.name)) {
+                templates.addAll(group.templates)
+                deployments.addAll(group.deployments)
+                properties.putAll(group.properties)
+            }
+        }
+
+        val serviceConfiguration = ServiceConfiguration(
+            ServiceId(
+                UUID.randomUUID(),
+                CloudControlNode.currentNetworkNodeSnapshot.node.name,
+                serviceTask,
+                taskId,
+                serviceTask.processConfiguration.environment
+            ),
+            serviceTask.autoDeleteOnStop,
+            serviceTask.staticServices,
+            serviceTask.startPort,
+            serviceTask.groups,
+            emptyList(),
+            templates, deployments,
+            properties
+        )
+        return runTask(serviceConfiguration)
     }
 
-    suspend fun runTask(serviceConfiguration: ServiceConfiguration): CloudService {
-        TODO()
+    @Suppress("NAME_SHADOWING")
+    fun runTask(serviceConfiguration: ServiceConfiguration): JVMCloudService {
+        val port = PortResolver.resolvePort(serviceConfiguration.port)
+        val serviceConfiguration = if (port == serviceConfiguration.port) {
+            serviceConfiguration
+        } else {
+            serviceConfiguration.copy(port = port)
+        }
+        val cloudService = JVMCloudService(serviceConfiguration)
+
+        cloudServicesMap[cloudService.serviceId.uniqueId] = cloudService
+        serviceInfoSnapshotsMap[cloudService.serviceId.uniqueId] = cloudService.serviceInfoSnapshot
+        CloudControlNode.sendNodeUpdate()
+
+        return cloudService
     }
 }

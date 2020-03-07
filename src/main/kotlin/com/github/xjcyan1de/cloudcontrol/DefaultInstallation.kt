@@ -1,6 +1,6 @@
 package com.github.xjcyan1de.cloudcontrol
 
-import com.github.xjcyan1de.cloudcontrol.console.Console
+import com.github.xjcyan1de.cloudcontrol.api.console.Console
 import com.github.xjcyan1de.cloudcontrol.console.animation.question.QuestionListEntry
 import com.github.xjcyan1de.cloudcontrol.console.animation.question.answer.QuestionAnswerTypeString
 import com.github.xjcyan1de.cyanlibz.localization.textOf

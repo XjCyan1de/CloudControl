@@ -13,5 +13,17 @@ data class ProcessSnapshot(
     val cpuUsage: Double = SystemStatistics.processCPUUsage,
     val pid: Int = SystemStatistics.pid
 ) {
-    companion object
+    companion object {
+        fun empty(): ProcessSnapshot = ProcessSnapshot(
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            emptyList(),
+            -1.0,
+            -1
+        )
+    }
 }

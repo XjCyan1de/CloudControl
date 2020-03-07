@@ -1,5 +1,7 @@
 package com.github.xjcyan1de.cloudcontrol.api.util
 
+import com.github.xjcyan1de.cloudcontrol.api.service.cloudServices
+import com.github.xjcyan1de.cyanlibz.localization.textOf
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 
@@ -31,6 +33,24 @@ object PortResolver {
         while (!checkPort(port)) {
             ++port
         }
+        return port
+    }
+
+    fun resolvePort(startPort: Int = 44955): Int {
+        var port = startPort
+        val ports = cloudServices.map { it.serviceConfiguration.port }
+
+        while (ports.contains(port)) {
+            port++
+        }
+
+        while (!checkPort(port)) {
+            println(textOf("cloud_control.service.service_port_bind_retry_message",
+                "port" to { port },
+                "next_port" to { ++port }
+            ).get())
+        }
+
         return port
     }
 }

@@ -28,12 +28,12 @@ object ConfigurationManager {
                 ServiceGroup("Proxy", emptyList(), emptyList()),
                 ServiceGroup("Lobby", emptyList(), emptyList()),
                 ServiceGroup(
-                    "Global-Server", listOf(
+                    "Global-Lobby", listOf(
                         ServiceTemplate("Global", "bukkit", ServiceStorage.LOCAL)
                     ), emptyList()
                 ),
                 ServiceGroup(
-                    "Global-Server", listOf(
+                    "Global-Proxy", listOf(
                         ServiceTemplate("Global", "proxy", ServiceStorage.LOCAL)
                     ), emptyList()
                 )
@@ -51,9 +51,10 @@ object ConfigurationManager {
                 "jvm",
                 false,
                 false,
+                false,
                 listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 listOf("Lobby", "Global-Server"),
-                ProcessConfiguration(ServiceEnvironment.MINECRAFT_SERVER, 372, emptyList()),
+                ProcessConfiguration(ServiceEnvironment.PAPERMC),
                 44955,
                 1,
                 listOf(
@@ -66,9 +67,10 @@ object ConfigurationManager {
                 "jvm",
                 false,
                 false,
+                false,
                 listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 listOf("Proxy", "Global-Proxy"),
-                ProcessConfiguration(ServiceEnvironment.PROXY_SERVER, 128, emptyList()),
+                ProcessConfiguration(ServiceEnvironment.WATERFALL),
                 25565,
                 1,
                 listOf(

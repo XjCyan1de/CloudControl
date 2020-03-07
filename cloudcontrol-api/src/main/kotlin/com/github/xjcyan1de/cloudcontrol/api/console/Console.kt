@@ -1,14 +1,13 @@
-package com.github.xjcyan1de.cloudcontrol.console
+package com.github.xjcyan1de.cloudcontrol.api.console
 
-import com.github.xjcyan1de.cloudcontrol.command.TabCompleter
-import com.github.xjcyan1de.cloudcontrol.console.animation.AbstractConsoleAnimation
+import com.github.xjcyan1de.cloudcontrol.api.command.TabCompleter
 import java.util.*
 import java.util.function.Consumer
 
 interface Console : AutoCloseable {
     val runningAnimations: Collection<AbstractConsoleAnimation?>?
     fun startAnimation(animation: AbstractConsoleAnimation?)
-    val isAnimationRunning: Boolean
+    fun isAnimationRunning(): Boolean
     fun togglePrinting(enabled: Boolean)
     val isPrintingEnabled: Boolean
     val hasAnimationSupport: Boolean get() = hasColorSupport

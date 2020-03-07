@@ -1,5 +1,6 @@
 package com.github.xjcyan1de.cloudcontrol.api
 
+import com.github.xjcyan1de.cloudcontrol.api.console.Console
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeConfiguration
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeProvider
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeSnapshot
@@ -11,6 +12,7 @@ import com.github.xjcyan1de.cyanlibz.messenger.Messenger
 import java.util.*
 
 interface CloudControlDriver {
+    val console: Console
     val generalCloudServiceProvider: GeneralCloudServiceProvider
     val serviceTaskProvider: ServiceTaskProvider
     val networkNodeProvider: NetworkNodeProvider

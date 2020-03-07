@@ -3,7 +3,8 @@ package com.github.xjcyan1de.cloudcontrol.api.service
 data class ServiceGroup(
     val name: String,
     val templates: List<ServiceTemplate>,
-    val deployments: List<ServiceDeployment>
+    val deployments: List<ServiceDeployment>,
+    val properties: Map<String, String> = emptyMap()
 ) {
     override fun hashCode(): Int = name.hashCode()
 

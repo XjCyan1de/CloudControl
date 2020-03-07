@@ -1,6 +1,5 @@
-package com.github.xjcyan1de.cloudcontrol.console.animation
+package com.github.xjcyan1de.cloudcontrol.api.console
 
-import com.github.xjcyan1de.cloudcontrol.console.Console
 import org.fusesource.jansi.Ansi
 import java.util.*
 

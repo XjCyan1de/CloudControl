@@ -4,8 +4,9 @@ import com.github.xjcyan1de.cloudcontrol.api.service.ServiceDeployment
 import com.github.xjcyan1de.cloudcontrol.api.service.ServiceTemplate
 
 abstract class BaseServiceConfiguration(
-    open val templates: List<ServiceTemplate>,
-    open val deployments: List<ServiceDeployment>
+    open val templates: Iterable<ServiceTemplate>,
+    open val deployments: Iterable<ServiceDeployment>,
+    open val properties: Map<String, String>
 ) {
     companion object
 }

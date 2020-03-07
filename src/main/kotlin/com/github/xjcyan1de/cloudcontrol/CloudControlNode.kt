@@ -1,6 +1,7 @@
 package com.github.xjcyan1de.cloudcontrol
 
 import com.github.xjcyan1de.cloudcontrol.api.*
+import com.github.xjcyan1de.cloudcontrol.api.console.Console
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeConfiguration
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeProvider
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNodeSnapshot
@@ -23,6 +24,8 @@ import kotlin.concurrent.thread
 
 object CloudControlNode : CloudControlDriver {
     val processQueue = ConcurrentLinkedQueue<() -> Unit>()
+    override val console: Console
+        get() = TODO("Not yet implemented")
     override val generalCloudServiceProvider = CloudServiceManager
     override val serviceTaskProvider = CloudServiceManager
     override val networkNodeProvider: NetworkNodeProvider = NodeServerProvider
@@ -67,6 +70,7 @@ object CloudControlNode : CloudControlDriver {
 
     override fun getCloudServiceWrapper(serviceInfoSnapshot: ServiceInfoSnapshot): CloudServiceWrapper =
         NodeCloudServiceWrapper(serviceInfoSnapshot)
+
 
     fun runConsole() {
         TODO()
@@ -147,7 +151,8 @@ object CloudControlNode : CloudControlDriver {
                     val isCurrentNodeLessLoaded = currentNetworkNodeSnapshot == lessLoaded
 
                     if (minServiceCount > taskServices.size && isCurrentNodeLessLoaded) {
-                        CloudServiceManager.runTask(task)
+                        val cloudService = CloudServiceManager.runTask(task)
+                        cloudService.start()
                     }
                 }
             }
@@ -161,6 +166,10 @@ object CloudControlNode : CloudControlDriver {
     fun sendNodeUpdate() {
         lastNetworkNodeSnapshot = currentNetworkNodeSnapshot
         currentNetworkNodeSnapshot = createNetworkNodeSnapshot()
+    }
+
+    fun sendServiceUpdate(serviceInfoSnapshot: ServiceInfoSnapshot) {
+        println("updating serviceInfo = $serviceInfoSnapshot")
     }
 
     fun createNetworkNodeSnapshot(): NetworkNodeSnapshot {
