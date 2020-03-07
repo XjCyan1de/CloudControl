@@ -1,10 +1,10 @@
 package com.github.xjcyan1de.cloudcontrol.api.service.configuration
 
+import com.github.xjcyan1de.cloudcontrol.api.CloudControl
 import com.github.xjcyan1de.cloudcontrol.api.GROUPS_CONFIG_PATH
 import com.github.xjcyan1de.cloudcontrol.api.TASKS_DIRECTORY
-import com.github.xjcyan1de.cloudcontrol.api.cloudControlDriver
-import com.github.xjcyan1de.cloudcontrol.api.save
 import com.github.xjcyan1de.cloudcontrol.api.service.*
+import com.github.xjcyan1de.cloudcontrol.api.util.save
 import com.github.xjcyan1de.cyanlibz.localization.textOf
 import com.typesafe.config.ConfigFactory
 import io.github.config4k.extract
@@ -51,7 +51,7 @@ object ConfigurationManager {
                 "jvm",
                 false,
                 false,
-                listOf(cloudControlDriver.currentNetworkNodeInfo.node),
+                listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 listOf("Lobby", "Global-Server"),
                 ProcessConfiguration(ServiceEnvironment.MINECRAFT_SERVER, 372, emptyList()),
                 44955,
@@ -66,7 +66,7 @@ object ConfigurationManager {
                 "jvm",
                 false,
                 false,
-                listOf(cloudControlDriver.currentNetworkNodeInfo.node),
+                listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 listOf("Proxy", "Global-Proxy"),
                 ProcessConfiguration(ServiceEnvironment.PROXY_SERVER, 128, emptyList()),
                 25565,

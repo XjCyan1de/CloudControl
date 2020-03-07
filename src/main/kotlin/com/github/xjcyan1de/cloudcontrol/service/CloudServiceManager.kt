@@ -8,84 +8,104 @@ import com.github.xjcyan1de.cloudcontrol.api.service.configuration.toServiceConf
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-interface CloudServiceManager {
-    val serviceTasks: List<ServiceTask>
-    val serviceInfoSnapshots: Collection<ServiceInfoSnapshot>
-    val localServices: Collection<CloudService>
+object CloudServiceManager : CloudServiceFactory, GeneralCloudServiceProvider, ServiceTaskProvider {
+    val serviceInfoSnapshotsMap = ConcurrentHashMap<UUID, ServiceInfoSnapshot>()
+    val cloudServicesMap = ConcurrentHashMap<UUID, CloudService>()
+    val localServicesMap = ConcurrentHashMap<UUID, CloudService>()
 
-    fun getServiceInfoSnapshot(uniqueId: UUID): ServiceInfoSnapshot?
-
-    fun getServiceInfoSnapshot(predicate: (ServiceInfoSnapshot) -> Boolean): ServiceInfoSnapshot? =
-        serviceInfoSnapshots.find(predicate)
-
-    fun getServiceInfoSnapshot(name: String): ServiceInfoSnapshot? =
-        getServiceInfoSnapshot { it.serviceId.name.equals(name, true) }
-
-    fun getServiceInfoSnapshots(predicate: (ServiceInfoSnapshot) -> Boolean): Collection<ServiceInfoSnapshot> =
-        serviceInfoSnapshots.filter(predicate)
-
-    fun getServiceInfoSnapshots(task: ServiceTask): Collection<ServiceInfoSnapshot> = getServiceInfoSnapshots {
-        it.serviceId.task == task
-    }
-
-    fun getServiceInfoSnapshots(environment: ServiceEnvironment): Collection<ServiceInfoSnapshot> =
-        getServiceInfoSnapshots {
-            it.serviceId.environment == environment
-        }
-
-    fun getLocalCloudServices(predicate: (CloudService) -> Boolean): Collection<CloudService> =
-        localServices.filter(predicate)
-
-    fun getLocalCloudServices(task: ServiceTask): Collection<CloudService> = getLocalCloudServices {
-        it.id.task == task
-    }
-
-    fun getLocalCloudServices(environment: ServiceEnvironment): Collection<CloudService> = getLocalCloudServices {
-        it.id.environment == environment
-    }
-
-    fun getReservedTaskIds(task: ServiceTask): Collection<Int> =
-        serviceInfoSnapshots.filter { it.serviceId.task == task }.map { it.serviceId.taskServiceId }
-
-    fun runTask(task: ServiceTask) {
-        val taskIds = getReservedTaskIds(task)
+    override suspend fun createCloudService(serviceTask: ServiceTask): ServiceInfoSnapshot {
+        val taskIds = serviceTask.getReservedTaskIds()
         var taskId = 1
+
         while (taskIds.contains(taskId)) {
             taskId++
         }
-        val serviceConfiguration = task.toServiceConfiguration(
+
+        val serviceConfiguration = serviceTask.toServiceConfiguration(
             ServiceId(
                 UUID.randomUUID(),
-                CloudControlNode.nodeConfiguration.identity.name,
-                task,
+                CloudControlNode.networkNodeConfiguration.identity.name,
+                serviceTask,
                 taskId,
-                task.processConfiguration.environment
+                serviceTask.processConfiguration.environment
             )
         )
-        runTask(serviceConfiguration)
+        return createCloudService(serviceConfiguration)
     }
 
-    fun runTask(serviceConfiguration: ServiceConfiguration)
+    override suspend fun createCloudService(serviceConfiguration: ServiceConfiguration): ServiceInfoSnapshot {
+        return CloudService(serviceConfiguration).serviceInfoSnapshot
+    }
 
-    val currentUsedHeapMemory: Int
-        get() =
-            localServices.filter { it.lifeCycle == ServiceLifeCycle.RUNNING }.map { it.configuredMaxHeapMemory }.sum()
-    val currentReservedMemory: Int get() = localServices.map { it.configuredMaxHeapMemory }.sum()
-}
+    override suspend fun getServicesUniqueIds(): Collection<UUID> =
+        serviceInfoSnapshotsMap.keys
 
-fun CloudServiceManager(): CloudServiceManager = CloudServiceManagerImpl()
+    override suspend fun getCloudServices(): Collection<ServiceInfoSnapshot> =
+        serviceInfoSnapshotsMap.values
 
-internal class CloudServiceManagerImpl : CloudServiceManager {
-    private val serviceInfoSnapshotsMap = ConcurrentHashMap<UUID, ServiceInfoSnapshot>()
-    private val cloudServicesMap = ConcurrentHashMap<UUID, CloudService>()
-    private val localServicesMap = ConcurrentHashMap<UUID, CloudService>()
-    override val serviceTasks: List<ServiceTask> get() = ConfigurationManager.tasks
-    override val serviceInfoSnapshots get() = serviceInfoSnapshotsMap.values
-    override val localServices get() = cloudServicesMap.values
+    override suspend fun getCloudServices(serviceTask: ServiceTask): Collection<ServiceInfoSnapshot> =
+        getCloudServices().filter { it.serviceId.task == serviceTask }
 
-    override fun getServiceInfoSnapshot(uniqueId: UUID): ServiceInfoSnapshot? = serviceInfoSnapshotsMap[uniqueId]
+    override suspend fun getCloudServices(serviceEnvironment: ServiceEnvironment): Collection<ServiceInfoSnapshot> =
+        getCloudServices().filter { it.serviceId.environment == serviceEnvironment }
 
-    override fun runTask(serviceConfiguration: ServiceConfiguration) {
-        println("Run task: $serviceConfiguration")
+    override suspend fun getCloudServices(serviceGroup: ServiceGroup): Collection<ServiceInfoSnapshot> =
+        getCloudServices().filter {
+            it.serviceConfiguration.groups.contains(
+                serviceGroup.name
+            )
+        }
+
+    override suspend fun getStartedCloudServices(): Collection<ServiceInfoSnapshot> =
+        getCloudServices().filter { it.lifeCycle == ServiceLifeCycle.RUNNING }
+
+    override suspend fun getServicesCount(): Int = getCloudServices().size
+
+    override suspend fun getServicesCount(serviceGroup: ServiceGroup): Int =
+        getCloudServices().count {
+            it.serviceConfiguration.groups.contains(
+                serviceGroup.name
+            )
+        }
+
+    override suspend fun getServicesCount(serviceTask: ServiceTask): Int =
+        getCloudServices().count { it.serviceId.task == serviceTask }
+
+    override suspend fun getServicesCount(serviceEnvironment: ServiceEnvironment): Int =
+        getCloudServices().count { it.serviceId.environment == serviceEnvironment }
+
+    override suspend fun getCloudService(name: String): ServiceInfoSnapshot? =
+        getCloudServices().find { it.serviceId.name.equals(name, true) }
+
+    override suspend fun getCloudService(uniqueId: UUID): ServiceInfoSnapshot? =
+        serviceInfoSnapshotsMap[uniqueId]
+
+    override suspend fun getServiceTasks(): Collection<ServiceTask> = ConfigurationManager.tasks
+
+    override suspend fun getServiceTask(name: String): ServiceTask? =
+        getServiceTasks().find { it.name.equals(name, true) }
+
+    override suspend fun isServiceTaskPresent(name: String): Boolean = getServiceTask(name) != null
+
+    override suspend fun addPermanentServiceTask(serviceTask: ServiceTask) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun removePermanentServiceTask(serviceTask: ServiceTask) {
+        TODO("Not yet implemented")
+    }
+
+    fun getLocalCloudServices(): Collection<CloudService> = localServicesMap.values
+
+    fun getLocalCloudServices(serviceTask: ServiceTask): Collection<CloudService> = localServicesMap.values.filter {
+        it.id.task == serviceTask
+    }
+
+    suspend fun runTask(serviceTask: ServiceTask): CloudService {
+        TODO()
+    }
+
+    suspend fun runTask(serviceConfiguration: ServiceConfiguration): CloudService {
+        TODO()
     }
 }

@@ -10,4 +10,6 @@ data class ServiceId(
     val environment: ServiceEnvironment
 ) {
     val name: String = "${task.name}-$taskServiceId"
+
+    companion object
 }

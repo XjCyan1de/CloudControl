@@ -14,4 +14,6 @@ data class NetworkAddress(
     )
 
     override fun toString(): String = "$host:$port"
+
+    companion object
 }

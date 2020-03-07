@@ -5,5 +5,7 @@ enum class ServiceLifeCycle {
     PREPARED,
     RUNNING,
     STOPPED,
-    DELETED
+    DELETED;
+
+    companion object
 }

@@ -12,4 +12,6 @@ data class ProcessSnapshot(
     val threads: List<ThreadSnapshot> = Thread.getAllStackTraces().keys.map { ThreadSnapshot(it) },
     val cpuUsage: Double = SystemStatistics.processCPUUsage,
     val pid: Int = SystemStatistics.pid
-)
+) {
+    companion object
+}

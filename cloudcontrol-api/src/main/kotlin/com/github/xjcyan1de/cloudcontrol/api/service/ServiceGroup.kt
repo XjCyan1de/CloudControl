@@ -8,4 +8,6 @@ data class ServiceGroup(
     override fun hashCode(): Int = name.hashCode()
 
     override fun equals(other: Any?): Boolean = name.equals((other as? ServiceGroup)?.name, true)
+
+    companion object
 }

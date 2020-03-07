@@ -1,9 +1,11 @@
-package com.github.xjcyan1de.cloudcontrol.api.node
+package com.github.xjcyan1de.cloudcontrol.api.network
 
-import com.github.xjcyan1de.cloudcontrol.api.*
-import com.github.xjcyan1de.cloudcontrol.api.network.NetworkCluster
-import com.github.xjcyan1de.cloudcontrol.api.network.NetworkNode
+import com.github.xjcyan1de.cloudcontrol.api.CLUSTER_ID
+import com.github.xjcyan1de.cloudcontrol.api.CLUSTER_NODE_UNIQUE_ID
+import com.github.xjcyan1de.cloudcontrol.api.CONFIG_PATH
+import com.github.xjcyan1de.cloudcontrol.api.RUNTIME_JVM_COMMAND
 import com.github.xjcyan1de.cloudcontrol.api.util.SystemStatistics
+import com.github.xjcyan1de.cloudcontrol.api.util.save
 import com.typesafe.config.ConfigFactory
 import io.github.config4k.extract
 import io.github.config4k.toConfig
@@ -13,14 +15,14 @@ import kotlin.math.min
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-class NodeConfiguration(
+class NetworkNodeConfiguration(
     identity: NetworkNode = NetworkNode(
         if (CLUSTER_NODE_UNIQUE_ID != null) CLUSTER_NODE_UNIQUE_ID!! else
             "Node-${UUID.randomUUID().toString().split("-")[0]}"
     ),
     cluster: NetworkCluster = NetworkCluster(
         if (CLUSTER_ID != null) UUID.fromString(CLUSTER_ID!!) else UUID.randomUUID(),
-        emptyList()
+        listOf(identity)
     ),
     hostAddress: String = InetAddress.getLocalHost().hostAddress,
     maxCPUUsageToStartServices: Double = 100.0,
@@ -34,9 +36,15 @@ class NodeConfiguration(
     defaultJVMOptionParameters: Boolean = true,
     jvmCommand: String = if (RUNTIME_JVM_COMMAND != null) RUNTIME_JVM_COMMAND!! else "java"
 ) {
-    var identity by ConfigSaver(identity)
-    var cluster by ConfigSaver(cluster)
-    var hostAddress by ConfigSaver(hostAddress)
+    var identity by ConfigSaver(
+        identity
+    )
+    var cluster by ConfigSaver(
+        cluster
+    )
+    var hostAddress by ConfigSaver(
+        hostAddress
+    )
     var maxCPUUsageToStartServices by ConfigSaver(
         maxCPUUsageToStartServices
     )
@@ -70,10 +78,10 @@ class NodeConfiguration(
     }
 
     companion object {
-        fun load(): NodeConfiguration {
+        fun load(): NetworkNodeConfiguration {
             val configFile = CONFIG_PATH.toFile()
             if (!configFile.exists()) {
-                NodeConfiguration().toConfig("config").save(configFile)
+                NetworkNodeConfiguration().toConfig("config").save(configFile)
             }
             return ConfigFactory.parseFile(configFile).extract("config")
         }

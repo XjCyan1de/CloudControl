@@ -6,15 +6,17 @@ import com.github.xjcyan1de.cloudcontrol.api.service.ServiceTask
 import com.github.xjcyan1de.cloudcontrol.api.service.ServiceTemplate
 
 data class ServiceConfiguration(
-    var serviceId: ServiceId,
+    val serviceId: ServiceId,
     val runtime: String,
-    var groups: List<String>,
-    override var templates: List<ServiceTemplate>,
-    override var deployments: List<ServiceDeployment>,
-    var deletedFilesAfterStop: List<String>,
-    var processConfiguration: ProcessConfiguration,
-    var port: Int
-) : BaseServiceConfiguration(templates, deployments)
+    val groups: List<String>,
+    override val templates: List<ServiceTemplate>,
+    override val deployments: List<ServiceDeployment>,
+    val deletedFilesAfterStop: List<String>,
+    val processConfiguration: ProcessConfiguration,
+    val port: Int
+) : BaseServiceConfiguration(templates, deployments) {
+    companion object
+}
 
 fun ServiceTask.toServiceConfiguration(serviceId: ServiceId) = ServiceConfiguration(
     serviceId,
