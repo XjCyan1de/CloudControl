@@ -47,36 +47,34 @@ object ConfigurationManager {
         if (!dir.exists()) {
             dir.mkdirs()
             ServiceTask(
-                "Lobby",
-                "jvm",
-                false,
-                false,
-                false,
-                listOf(CloudControl.currentNetworkNodeSnapshot.node),
-                listOf("Lobby", "Global-Server"),
-                ProcessConfiguration(ServiceEnvironment.PAPERMC),
-                44955,
-                1,
-                listOf(
+                name = "Lobby",
+                maintenance = false,
+                autoDeleteOnStop = false,
+                staticServices = false,
+                associatedNodes = listOf(CloudControl.currentNetworkNodeSnapshot.node),
+                groups = listOf("Lobby", "Global-Server"),
+                processConfiguration = ProcessConfiguration(ServiceEnvironment.PAPERMC),
+                startPort = 44955,
+                minServiceCount = 1,
+                templates = listOf(
                     ServiceTemplate("Lobby", "default", ServiceStorage.LOCAL)
                 ),
-                emptyList()
+                deployments = emptyList()
             ).also { saveTask(it) }
             ServiceTask(
-                "Proxy",
-                "jvm",
-                false,
-                false,
-                false,
-                listOf(CloudControl.currentNetworkNodeSnapshot.node),
-                listOf("Proxy", "Global-Proxy"),
-                ProcessConfiguration(ServiceEnvironment.WATERFALL),
-                25565,
-                1,
-                listOf(
+                name = "Proxy",
+                maintenance = false,
+                autoDeleteOnStop = false,
+                staticServices = false,
+                associatedNodes = listOf(CloudControl.currentNetworkNodeSnapshot.node),
+                groups = listOf("Proxy", "Global-Proxy"),
+                processConfiguration = ProcessConfiguration(ServiceEnvironment.WATERFALL),
+                startPort = 25565,
+                minServiceCount = 1,
+                templates = listOf(
                     ServiceTemplate("Proxy", "default", ServiceStorage.LOCAL)
                 ),
-                emptyList()
+                deployments = emptyList()
             ).also { saveTask(it) }
         }
         tasks = dir.walkTopDown().map { file ->
