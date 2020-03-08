@@ -27,6 +27,7 @@ allprojects {
         implementation("com.google.code.gson", "gson", "2.8.6")
         implementation("org.fusesource.jansi", "jansi", "1.18")
         implementation("jline", "jline", "2.14.2")
+        implementation("org.yaml", "snakeyaml", "1.26")
     }
 
     tasks {

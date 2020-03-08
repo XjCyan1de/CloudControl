@@ -7,9 +7,12 @@ import com.github.xjcyan1de.cloudcontrol.api.network.NetworkAddress
 import com.github.xjcyan1de.cloudcontrol.api.service.*
 import com.github.xjcyan1de.cloudcontrol.api.service.configuration.ServiceConfiguration
 import com.github.xjcyan1de.cloudcontrol.api.util.SystemStatistics
+import com.github.xjcyan1de.cloudcontrol.service.configuration.BungeeConfigurator
+import com.github.xjcyan1de.cloudcontrol.service.configuration.NMSConfigurator
 import com.github.xjcyan1de.cloudcontrol.template.getStorage
 import com.github.xjcyan1de.cyanlibz.localization.textOf
 import java.io.File
+import java.nio.file.Files
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -165,24 +168,34 @@ class JVMCloudService(
                 "id" to { serviceId.uniqueId }
             ).get())
 
+            configureServiceEnvironment()
         }
         TODO()
     }
 
     private fun configureServiceEnvironment() {
+        fun File.copyDefaultFile(path: String? = null) = apply {
+            if (!this.exists() && this.createNewFile() && path != null) {
+                javaClass.classLoader.getResourceAsStream(path)?.use {
+                    Files.copy(it, toPath())
+                }
+            }
+        }
 
-        TODO()
-    }
-
-    @Throws(java.lang.Exception::class)
-    private fun rewriteServiceConfigurationFile(
-        file: File,
-        block: (String) -> String
-    ) {
-        val lines = file.readLines()
-
-        lines.forEach {
-
+        when (serviceConfiguration.processConfiguration.environment) {
+            ServiceEnvironment.BUNGEECORD, ServiceEnvironment.WATERFALL -> {
+                val file = File(directory, "config.yml").copyDefaultFile("files/bungee/config.yml")
+                BungeeConfigurator(serviceConfiguration).rewrite(file)
+            }
+            ServiceEnvironment.PAPERMC -> {
+                val serverProperties =
+                    File(directory, "server.properties").copyDefaultFile("files/nms/server.properties")
+                val eulaTxt = File(directory, "eula.txt").copyDefaultFile()
+                val configurator = NMSConfigurator(serviceConfiguration)
+                configurator.rewrite(serverProperties)
+                configurator.rewrite(eulaTxt)
+            }
+            else -> TODO()
         }
     }
 
