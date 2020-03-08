@@ -7,7 +7,6 @@ import kotlinx.coroutines.runBlocking
 
 data class ServiceTask(
     val name: String,
-    val runtime: String,
     val maintenance: Boolean,
     val autoDeleteOnStop: Boolean,
     val staticServices: Boolean,
