@@ -1,5 +1,8 @@
 package com.github.xjcyan1de.cloudcontrol.api.util
 
+import com.github.xjcyan1de.cloudcontrol.api.service.cloudServices
+import com.github.xjcyan1de.cloudcontrol.api.service.currentUsedHeapMemory
+import com.github.xjcyan1de.cyanlibz.localization.textOf
 import com.sun.management.OperatingSystemMXBean
 import java.lang.management.ManagementFactory
 import java.text.DecimalFormat
@@ -23,4 +26,17 @@ object SystemStatistics {
     val loadedClassCount get() = ManagementFactory.getClassLoadingMXBean().loadedClassCount
     val totalLoadedClassCount get() = ManagementFactory.getClassLoadingMXBean().totalLoadedClassCount
     val unloadedClassCount get() = ManagementFactory.getClassLoadingMXBean().unloadedClassCount
+
+    fun isPermissibleSystemLoad(requiredHeapMemory: Int, maxHeapMemory: Int, maxCPUUsage: Double): Boolean {
+        val expectedMemoryUsage = cloudServices.currentUsedHeapMemory + requiredHeapMemory
+        if (expectedMemoryUsage >= maxHeapMemory) {
+            println(textOf("cloud_service.manager.max_memory_error").get())
+            return false
+        }
+        if (systemCPUusage >= maxCPUUsage) {
+            println(textOf("cloud_service.manager.cpu_usage_to_high_error").get())
+            return false
+        }
+        return true
+    }
 }

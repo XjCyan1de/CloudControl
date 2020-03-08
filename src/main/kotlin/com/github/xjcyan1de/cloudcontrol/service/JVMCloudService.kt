@@ -138,7 +138,9 @@ class JVMCloudService(
 
     private fun startProcess() {
         if (lifeCycle == ServiceLifeCycle.PREPARED || lifeCycle == ServiceLifeCycle.STOPPED) {
-            if (!isPermissibleSystemLoad()) {
+            val maxHeapMemory = CloudControlNode.networkNodeConfiguration.maxMemory
+            val maxCPUUsage = CloudControlNode.networkNodeConfiguration.maxCPUUsageToStartServices
+            if (!SystemStatistics.isPermissibleSystemLoad(configuredMaxHeapMemory, maxHeapMemory, maxCPUUsage)) {
                 return
             }
             println(textOf("cloud_service.pre_start_prepared",
@@ -182,19 +184,6 @@ class JVMCloudService(
         lines.forEach {
 
         }
-    }
-
-    private fun isPermissibleSystemLoad(): Boolean {
-        val expectedMemoryUsage = cloudServices.currentUsedHeapMemory + configuredMaxHeapMemory
-        if (expectedMemoryUsage >= CloudControlNode.networkNodeConfiguration.maxMemory) {
-            println(textOf("cloud_service.manager.max_memory_error").get())
-            return false
-        }
-        if (SystemStatistics.systemCPUusage >= CloudControlNode.networkNodeConfiguration.maxCPUUsageToStartServices) {
-            println(textOf("cloud_service.manager.cpu_usage_to_high_error").get())
-            return false
-        }
-        return true
     }
 
     private fun createServiceInfoSnapshot(lifeCycle: ServiceLifeCycle): ServiceInfoSnapshot =
