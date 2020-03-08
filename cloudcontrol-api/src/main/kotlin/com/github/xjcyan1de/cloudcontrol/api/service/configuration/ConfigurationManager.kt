@@ -53,7 +53,7 @@ object ConfigurationManager {
                 staticServices = false,
                 associatedNodes = listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 groups = listOf("Lobby", "Global-Server"),
-                processConfiguration = ProcessConfiguration(ServiceEnvironment.PAPERMC),
+                processConfiguration = ProcessConfiguration(ServiceEnvironment.PAPER),
                 startPort = 44955,
                 minServiceCount = 1,
                 templates = listOf(

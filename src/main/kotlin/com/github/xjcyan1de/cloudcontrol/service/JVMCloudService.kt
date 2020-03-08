@@ -2,6 +2,7 @@ package com.github.xjcyan1de.cloudcontrol.service
 
 import com.github.xjcyan1de.cloudcontrol.CloudControlNode
 import com.github.xjcyan1de.cloudcontrol.api.PRESISTANCE_SERVICES_DIR
+import com.github.xjcyan1de.cloudcontrol.api.SERVICE_ERROR_RESTART_DELAY
 import com.github.xjcyan1de.cloudcontrol.api.TEMP_DIR
 import com.github.xjcyan1de.cloudcontrol.api.network.NetworkAddress
 import com.github.xjcyan1de.cloudcontrol.api.service.*
@@ -11,13 +12,14 @@ import com.github.xjcyan1de.cloudcontrol.service.configuration.BungeeConfigurato
 import com.github.xjcyan1de.cloudcontrol.service.configuration.NMSConfigurator
 import com.github.xjcyan1de.cloudcontrol.template.getStorage
 import com.github.xjcyan1de.cyanlibz.localization.textOf
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.TimeUnit
+import java.util.jar.JarFile
 import kotlin.collections.ArrayList
 import kotlin.random.Random
 
@@ -25,7 +27,7 @@ class JVMCloudService(
     val serviceConfiguration: ServiceConfiguration
 ) {
     val templates: List<ServiceTemplate> = ArrayList()
-    val deployments: List<ServiceDeployment> = ArrayList()
+    val deployments: MutableList<ServiceDeployment> = ArrayList()
     val waitingTemplates: Queue<ServiceTemplate> = ConcurrentLinkedQueue()
     val groups: List<ServiceGroup> = ArrayList()
     var lifeCycle: ServiceLifeCycle = ServiceLifeCycle.DEFINED
@@ -33,10 +35,12 @@ class JVMCloudService(
     val connectionKey: String = Base64.getEncoder().encodeToString(Random.nextBytes(256))
     var serviceInfoSnapshot: ServiceInfoSnapshot = ServiceInfoSnapshot(serviceConfiguration, lifeCycle)
     val lastServiceInfoSnapshot: ServiceInfoSnapshot = serviceInfoSnapshot
-    val process: Process? = null
+    var process: Process? = null
     val configuredMaxHeapMemory: Int = serviceConfiguration.processConfiguration.maxHeapMemorySize
 
-    private val lifeCycleLock: Lock = ReentrantLock()
+    @Volatile
+    private var restartState: Boolean = false
+
     private val directory = if (serviceConfiguration.staticService) {
         File(PRESISTANCE_SERVICES_DIR.toFile(), serviceId.name)
     } else {
@@ -46,68 +50,93 @@ class JVMCloudService(
 
     init {
         directory.mkdirs()
+    }
+
+    fun initializeAndPrepare() {
         if (lifeCycle == ServiceLifeCycle.DEFINED || lifeCycle == ServiceLifeCycle.STOPPED) {
-            println(textOf("cloud_service.pre_prepared",
-                "task" to { serviceId.task.name },
-                "service_id" to { serviceId.taskServiceId },
-                "id" to { serviceId.uniqueId }
-            ).get())
+            log("cloud_service.pre_prepared")
+
             lifeCycle = ServiceLifeCycle.PREPARED
             serviceInfoSnapshot.lifeCycle = ServiceLifeCycle.PREPARED
+
             CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
-            println(textOf("cloud_service.post_prepared",
-                "task" to { serviceId.task.name },
-                "service_id" to { serviceId.taskServiceId },
-                "id" to { serviceId.uniqueId }
-            ).get())
+
+            log("cloud_service.post_prepared")
         }
     }
 
     fun runCommand(commandLine: String) {
-        TODO("Not yet implemented")
+        val process = process
+
+        if (lifeCycle == ServiceLifeCycle.RUNNING && process != null && process.isAlive) {
+            try {
+                val outputStream = process.outputStream
+
+                outputStream.write("$commandLine\n".toByteArray())
+                outputStream.flush()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun start() {
-        println("Starting service: $serviceConfiguration")
-
         includeTemplates()
 
         serviceInfoSnapshot = createServiceInfoSnapshot(ServiceLifeCycle.PREPARED)
         CloudServiceManager.serviceInfoSnapshotsMap[serviceInfoSnapshot.serviceId.uniqueId] = serviceInfoSnapshot
 
-        println(textOf("cloud_service.post_start_prepared",
-            "task" to { serviceId.task.name },
-            "service_id" to { serviceId.taskServiceId },
-            "id" to { serviceId.uniqueId }
-        ).get())
-        println(textOf("cloud_service.pre_start",
-            "task" to { serviceId.task.name },
-            "service_id" to { serviceId.taskServiceId },
-            "id" to { serviceId.uniqueId }
-        ).get())
-
-
+        if (!CloudControlNode.networkNodeConfiguration.parallelServiceStartSequence) {
+            synchronized(this) {
+                startProcess()
+            }
+        } else {
+            startProcess()
+        }
     }
 
+    @Synchronized
     fun restart() {
-        TODO("Not yet implemented")
+        restartState = true
+
+        stop()
+        start()
+
+        restartState = false
     }
 
-    fun stop() {
-        TODO("Not yet implemented")
+    @Synchronized
+    fun stop(): Int = stop0(false)
+
+    @Synchronized
+    fun kill(): Int = stop0(true)
+
+    private fun invokeAutoDeleteOnStopIfNotRestart() {
+        if (serviceConfiguration.autoDeleteOnStop && !restartState) {
+            delete()
+        } else {
+            initializeAndPrepare()
+        }
     }
 
-    fun kill() {
-        TODO("Not yet implemented")
-    }
-
+    @Synchronized
     fun delete() {
-        TODO("Not yet implemented")
+        if (lifeCycle == ServiceLifeCycle.DELETED) {
+            return
+        }
+
+        if (lifeCycle == ServiceLifeCycle.RUNNING) {
+            stop0(true)
+        }
+
+        delete0()
+
+        serviceInfoSnapshot.lifeCycle = ServiceLifeCycle.DELETED
+        CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
     }
 
-    fun isAlive(): Boolean {
-        TODO("Not yet implemented")
-    }
+    fun isAlive(): Boolean = lifeCycle == ServiceLifeCycle.DEFINED || lifeCycle == ServiceLifeCycle.PREPARED ||
+            (lifeCycle == ServiceLifeCycle.RUNNING && process?.isAlive == true)
 
     fun includeTemplates() {
         while (!waitingTemplates.isEmpty()) {
@@ -120,13 +149,7 @@ class JVMCloudService(
 
             try {
                 if (!serviceConfiguration.staticService || template.isShouldAlwaysCopyToStaticServices || firstStartupOnStaticService) {
-                    println(textOf("cloud_service.include_template",
-                        "task" to { serviceId.task.name },
-                        "id" to { serviceId.uniqueId },
-                        "service_id" to { serviceId.taskServiceId },
-                        "template" to { template.templatePath },
-                        "storage" to { template.storage }
-                    ))
+                    log("cloud_service.include_template")
                     storage.copy(template, directory)
                 }
             } catch (e: Exception) {
@@ -135,59 +158,156 @@ class JVMCloudService(
         }
     }
 
-    fun deployResources(removeDeployments: Boolean) {
-        TODO("Not yet implemented")
+    fun deployResources(removeDeployments: Boolean = true) {
+        for (deployment in deployments) {
+            val storage = getStorage(deployment.template.storage)
+
+            log("cloud_service.deploy")
+
+            storage.deploy(directory, deployment.template) { file: File ->
+                val isWrapperFile = file.name == "wrapper.jar" || file.name == ".wrapper"
+                val fileName = if (file.isDirectory) {
+                    file.name + "/"
+                } else {
+                    file.name
+                }
+
+                !isWrapperFile && !deployment.excludes.contains(fileName)
+            }
+
+            if (removeDeployments) {
+                deployments.remove(deployment)
+            }
+        }
     }
 
     private fun startProcess() {
         if (lifeCycle == ServiceLifeCycle.PREPARED || lifeCycle == ServiceLifeCycle.STOPPED) {
             val maxHeapMemory = CloudControlNode.networkNodeConfiguration.maxMemory
             val maxCPUUsage = CloudControlNode.networkNodeConfiguration.maxCPUUsageToStartServices
+
             if (!SystemStatistics.isPermissibleSystemLoad(configuredMaxHeapMemory, maxHeapMemory, maxCPUUsage)) {
                 return
             }
-            println(textOf("cloud_service.pre_start_prepared",
-                "task" to { serviceId.task.name },
-                "service_id" to { serviceId.task.name },
-                "id" to { serviceId.uniqueId }
-            ).get())
 
-            includeTemplates()
+            startPrepared0()
+            start0()
 
-            serviceInfoSnapshot = createServiceInfoSnapshot(ServiceLifeCycle.PREPARED)
-            CloudServiceManager.serviceInfoSnapshotsMap[serviceInfoSnapshot.serviceId.uniqueId] = serviceInfoSnapshot
+            serviceInfoSnapshot.lifeCycle = ServiceLifeCycle.RUNNING
 
-            println(textOf("cloud_service.post_start_prepared",
-                "task" to { serviceId.task.name },
-                "service_id" to { serviceId.task.name },
-                "id" to { serviceId.uniqueId }
-            ).get())
-            println(textOf("cloud_service.pre_start",
-                "task" to { serviceId.task.name },
-                "service_id" to { serviceId.task.name },
-                "id" to { serviceId.uniqueId }
-            ).get())
-
-            configureServiceEnvironment()
+            CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
         }
-        TODO()
     }
 
-    private fun configureServiceEnvironment() {
-        fun File.copyDefaultFile(path: String? = null) = apply {
-            if (!this.exists() && this.createNewFile() && path != null) {
-                javaClass.classLoader.getResourceAsStream(path)?.use {
-                    Files.copy(it, toPath())
-                }
+    private fun startPrepared0() {
+        val serviceUniqueId = serviceInfoSnapshot.serviceId.uniqueId
+
+        log("cloud_service.pre_start_prepared")
+
+        includeTemplates()
+
+        serviceInfoSnapshot = createServiceInfoSnapshot(ServiceLifeCycle.PREPARED)
+        CloudServiceManager.serviceInfoSnapshotsMap[serviceUniqueId] = serviceInfoSnapshot
+
+        log("cloud_service.post_start_prepared")
+    }
+
+    private fun start0() {
+        log("cloud_service.pre_start")
+
+        configureServiceEnvironment()
+        startWrapper()
+
+        lifeCycle = ServiceLifeCycle.RUNNING
+
+        log("cloud_service.post_start")
+    }
+
+    private fun stop0(force: Boolean): Int {
+        log("cloud_service.pre_stop")
+
+        val exitValue = stopProcess(force)
+
+        lifeCycle = ServiceLifeCycle.STOPPED
+
+        for (path in serviceConfiguration.deletedFilesAfterStop) {
+            val file = File(directory, path)
+
+            if (file.exists()) {
+                file.deleteRecursively()
             }
         }
 
+        log("cloud_service.post_stop")
+
+        serviceInfoSnapshot = createServiceInfoSnapshot(ServiceLifeCycle.STOPPED)
+        CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
+
+        invokeAutoDeleteOnStopIfNotRestart()
+
+        return exitValue
+    }
+
+    private fun stopProcess(force: Boolean): Int {
+        val process = process
+
+        if (process != null) {
+            try {
+                runCommand("stop")
+                runCommand("end")
+
+                if (process.waitFor(5, TimeUnit.SECONDS)) {
+                    return process.exitValue()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            if (!force) {
+                process.destroy()
+            } else {
+                process.destroyForcibly()
+            }
+
+            try {
+                process.exitValue()
+            } catch (ignored: Throwable) {
+                if (!force) {
+                    stopProcess(true)
+                }
+
+                return -1
+            }
+        }
+
+        return -1
+    }
+
+    private fun delete0() {
+        val serviceUniqueId = serviceId.uniqueId
+
+        log("cloud-service.pre_delete")
+
+        deployResources()
+
+        if (!serviceConfiguration.staticService) {
+            directory.deleteRecursively()
+        }
+
+        lifeCycle = ServiceLifeCycle.DELETED
+        CloudServiceManager.serviceInfoSnapshotsMap.remove(serviceUniqueId)
+        CloudServiceManager.cloudServicesMap.remove(serviceUniqueId)
+
+        log("cloud-service.post_delete")
+    }
+
+    private fun configureServiceEnvironment() {
         when (serviceConfiguration.processConfiguration.environment) {
             ServiceEnvironment.BUNGEECORD, ServiceEnvironment.WATERFALL -> {
                 val file = File(directory, "config.yml").copyDefaultFile("files/bungee/config.yml")
                 BungeeConfigurator(serviceConfiguration).rewrite(file)
             }
-            ServiceEnvironment.PAPERMC -> {
+            ServiceEnvironment.PAPER -> {
                 val serverProperties =
                     File(directory, "server.properties").copyDefaultFile("files/nms/server.properties")
                 val eulaTxt = File(directory, "eula.txt").copyDefaultFile()
@@ -197,6 +317,61 @@ class JVMCloudService(
             }
             else -> TODO()
         }
+    }
+
+    private fun File.copyDefaultFile(path: String? = null) = apply {
+        if (!this.exists() && this.createNewFile() && path != null) {
+            javaClass.classLoader.getResourceAsStream(path)?.use {
+                Files.copy(it, toPath())
+            }
+        }
+    }
+
+    private fun startWrapper() {
+        val applicationJar = directory.listFiles()!!.asSequence()
+            .filter { it.name.endsWith(".jar") }
+            .filter { it.name.contains(serviceConfiguration.processConfiguration.environment.name, true) }
+            .firstOrNull()
+
+        if (applicationJar == null) {
+            log("cloud_service.jar_file_not_found_error")
+            val serviceTask = runBlocking { CloudServiceManager.getServiceTask(serviceId.name) }
+            serviceTask?.forbidServiceStarting(SERVICE_ERROR_RESTART_DELAY * 1000)
+            stop()
+            return
+        }
+
+        val commandArguments = LinkedList<String>()
+
+        commandArguments.add(CloudControlNode.networkNodeConfiguration.jvmCommand)
+        commandArguments.addAll(CloudControlNode.networkNodeConfiguration.defaultJVMOptionParameters)
+        commandArguments.addAll(serviceConfiguration.processConfiguration.jvmOptions)
+        commandArguments.add("-Xmx$configuredMaxHeapMemory")
+        commandArguments.add("-Xms$configuredMaxHeapMemory")
+        commandArguments.add("-cp")
+
+        commandArguments.add(applicationJar.absolutePath)
+
+        JarFile(applicationJar).use {
+            commandArguments.add(it.manifest.mainAttributes["Main-Class"].toString())
+        }
+
+        commandArguments.add("nogui")
+        println(commandArguments.joinToString(" "))
+
+        process = ProcessBuilder().command(commandArguments).directory(directory).start()
+    }
+
+    private fun log(key: String, vararg replaces: Pair<String, Any>) {
+        println(
+            textOf(
+                key,
+                "task" to { serviceId.task.name },
+                "service_id" to { serviceId.task.name },
+                "id" to { serviceId.uniqueId },
+                *replaces.map { it.first to { it.second } }.toTypedArray()
+            )
+        )
     }
 
     private fun createServiceInfoSnapshot(lifeCycle: ServiceLifeCycle): ServiceInfoSnapshot =

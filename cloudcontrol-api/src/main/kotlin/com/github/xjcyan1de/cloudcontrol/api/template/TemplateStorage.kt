@@ -9,4 +9,5 @@ interface TemplateStorage {
     fun copy(template: ServiceTemplate, directory: File): Boolean
     fun has(template: ServiceTemplate): Boolean
     fun newOutputStream(template: ServiceTemplate, path: Path): OutputStream
+    fun deploy(directory: File, template: ServiceTemplate, predicate: (File) -> Boolean)
 }
