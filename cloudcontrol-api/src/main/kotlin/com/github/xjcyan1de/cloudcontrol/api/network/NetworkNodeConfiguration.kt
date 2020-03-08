@@ -33,7 +33,34 @@ class NetworkNodeConfiguration(
     )).toInt(),
     maxServiceConsoleLogCacheSize: Int = 64,
     printErrorStreamLinesFromServices: Boolean = true,
-    defaultJVMOptionParameters: Boolean = true,
+    defaultJVMOptionParameters: Iterable<String> = listOf(
+        "-server",
+        "-XX:+AlwaysPreTouch",
+        "-XX:+UseStringDeduplication",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:+UseCompressedOops",
+
+        "-XX:-TieredCompilation",
+        "-XX:CompileThreshold=100",
+
+        "-XX:+UseG1GC",
+        "-XX:G1NewSizePercent=50",
+        "-XX:G1MaxNewSizePercent=80",
+        "-XX:G1MixedGCLiveThresholdPercent=35",
+        "-XX:MaxGCPauseMillis=100",
+        "-XX:TargetSurvivorRatio=90",
+        "-XX:+ParallelRefProcEnabled",
+        "-XX:-UseAdaptiveSizePolicy",
+
+        "-Dfile.encoding=UTF-8",
+        "-Dclient.encoding.override=UTF-8",
+        "-Dio.netty.noPreferDirect=true",
+        "-Dio.netty.maxDirectMemory=0",
+        "-Dio.netty.leakDetectionLevel=DISABLED",
+        "-Dio.netty.recycler.maxCapacity=0",
+        "-Dio.netty.recycler.maxCapacity.default=0",
+        "-DIReallyKnowWhatIAmDoingISwear=true"
+    ),
     jvmCommand: String = if (RUNTIME_JVM_COMMAND != null) RUNTIME_JVM_COMMAND!! else "java"
 ) {
     var identity by ConfigSaver(
