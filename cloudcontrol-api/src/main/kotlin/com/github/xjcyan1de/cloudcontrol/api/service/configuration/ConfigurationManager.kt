@@ -49,7 +49,7 @@ object ConfigurationManager {
             ServiceTask(
                 name = "Lobby",
                 maintenance = false,
-                autoDeleteOnStop = false,
+                autoDeleteOnStop = true,
                 staticServices = false,
                 associatedNodes = listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 groups = listOf("Lobby", "Global-Server"),
@@ -64,7 +64,7 @@ object ConfigurationManager {
             ServiceTask(
                 name = "Proxy",
                 maintenance = false,
-                autoDeleteOnStop = false,
+                autoDeleteOnStop = true,
                 staticServices = false,
                 associatedNodes = listOf(CloudControl.currentNetworkNodeSnapshot.node),
                 groups = listOf("Proxy", "Global-Proxy"),

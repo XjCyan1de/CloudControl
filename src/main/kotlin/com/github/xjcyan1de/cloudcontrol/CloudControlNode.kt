@@ -170,7 +170,7 @@ object CloudControlNode : CloudControlDriver {
     }
 
     fun sendServiceUpdate(serviceInfoSnapshot: ServiceInfoSnapshot) {
-        println("updating serviceInfo = $serviceInfoSnapshot")
+        //TODO
     }
 
     fun createNetworkNodeSnapshot(): NetworkNodeSnapshot {

@@ -13,7 +13,6 @@ import kotlin.collections.HashMap
 object CloudServiceManager : GeneralCloudServiceProvider, ServiceTaskProvider {
     val serviceInfoSnapshotsMap = ConcurrentHashMap<UUID, ServiceInfoSnapshot>()
     val cloudServicesMap = ConcurrentHashMap<UUID, JVMCloudService>()
-    val localServicesMap = ConcurrentHashMap<UUID, JVMCloudService>()
 
     override suspend fun getServicesUniqueIds(): Collection<UUID> =
         serviceInfoSnapshotsMap.keys
@@ -73,9 +72,9 @@ object CloudServiceManager : GeneralCloudServiceProvider, ServiceTaskProvider {
         TODO("Not yet implemented")
     }
 
-    fun getLocalCloudServices(): Collection<JVMCloudService> = localServicesMap.values
+    fun getLocalCloudServices(): Collection<JVMCloudService> = cloudServicesMap.values
 
-    fun getLocalCloudServices(serviceTask: ServiceTask): Collection<JVMCloudService> = localServicesMap.values.filter {
+    fun getLocalCloudServices(serviceTask: ServiceTask): Collection<JVMCloudService> = cloudServicesMap.values.filter {
         it.serviceId.task == serviceTask
     }
 

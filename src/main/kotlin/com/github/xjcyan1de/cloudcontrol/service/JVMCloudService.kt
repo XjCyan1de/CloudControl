@@ -194,7 +194,7 @@ class JVMCloudService(
             startPrepared0()
             start0()
 
-            serviceInfoSnapshot.lifeCycle = ServiceLifeCycle.RUNNING
+            serviceInfoSnapshot.lifeCycle = lifeCycle
 
             CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
         }
@@ -217,7 +217,9 @@ class JVMCloudService(
         log("cloud_service.pre_start")
 
         configureServiceEnvironment()
-        startWrapper()
+        if (!startWrapper()) {
+            return
+        }
 
         lifeCycle = ServiceLifeCycle.RUNNING
 
@@ -239,11 +241,11 @@ class JVMCloudService(
             }
         }
 
-        log("cloud_service.post_stop")
+        log("cloud_service.post_stop", "exit_value" to exitValue)
 
         serviceInfoSnapshot = createServiceInfoSnapshot(ServiceLifeCycle.STOPPED)
-        CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
 
+        CloudControlNode.sendServiceUpdate(serviceInfoSnapshot)
         invokeAutoDeleteOnStopIfNotRestart()
 
         return exitValue
@@ -287,7 +289,7 @@ class JVMCloudService(
     private fun delete0() {
         val serviceUniqueId = serviceId.uniqueId
 
-        log("cloud-service.pre_delete")
+        log("cloud_service.pre_delete")
 
         deployResources()
 
@@ -296,16 +298,18 @@ class JVMCloudService(
         }
 
         lifeCycle = ServiceLifeCycle.DELETED
+
         CloudServiceManager.serviceInfoSnapshotsMap.remove(serviceUniqueId)
         CloudServiceManager.cloudServicesMap.remove(serviceUniqueId)
 
-        log("cloud-service.post_delete")
+        log("cloud_service.post_delete")
     }
 
     private fun configureServiceEnvironment() {
         when (serviceConfiguration.processConfiguration.environment) {
             ServiceEnvironment.BUNGEECORD, ServiceEnvironment.WATERFALL -> {
                 val file = File(directory, "config.yml").copyDefaultFile("files/bungee/config.yml")
+
                 BungeeConfigurator(serviceConfiguration).rewrite(file)
             }
             ServiceEnvironment.PAPER -> {
@@ -313,6 +317,7 @@ class JVMCloudService(
                     File(directory, "server.properties").copyDefaultFile("files/nms/server.properties")
                 val eulaTxt = File(directory, "eula.txt").copyDefaultFile()
                 val configurator = NMSConfigurator(serviceConfiguration)
+
                 configurator.rewrite(serverProperties)
                 configurator.rewrite(eulaTxt)
             }
@@ -322,14 +327,13 @@ class JVMCloudService(
 
     private fun File.copyDefaultFile(path: String? = null) = apply {
         if (!this.exists() && this.createNewFile() && path != null) {
-            println("Copy: $path")
-            javaClass.classLoader.getResourceAsStream(path)?.use {
+            javaClass.getResourceAsStream(path)?.use {
                 Files.copy(it, toPath())
             }
         }
     }
 
-    private fun startWrapper() {
+    private fun startWrapper(): Boolean {
         val applicationJar = directory.listFiles()!!.asSequence()
             .filter { it.name.endsWith(".jar") }
             .filter { it.name.contains(serviceConfiguration.processConfiguration.environment.name, true) }
@@ -337,10 +341,11 @@ class JVMCloudService(
 
         if (applicationJar == null) {
             log("cloud_service.jar_file_not_found_error")
-            val serviceTask = runBlocking { CloudServiceManager.getServiceTask(serviceId.name) }
+            val serviceTask = runBlocking { CloudServiceManager.getServiceTask(serviceId.task.name) }
             serviceTask?.forbidServiceStarting(SERVICE_ERROR_RESTART_DELAY * 1000)
             stop()
-            return
+
+            return false
         }
 
         val commandArguments = LinkedList<String>()
@@ -362,6 +367,8 @@ class JVMCloudService(
         println(commandArguments.joinToString(" "))
 
         process = ProcessBuilder().command(commandArguments).directory(directory).start()
+
+        return true
     }
 
     private fun log(key: String, vararg replaces: Pair<String, Any>) {
@@ -369,7 +376,7 @@ class JVMCloudService(
             textOf(
                 key,
                 "task" to { serviceId.task.name },
-                "service_id" to { serviceId.task.name },
+                "service_id" to { serviceId.taskServiceId },
                 "id" to { serviceId.uniqueId },
                 *replaces.map { it.first to { it.second } }.toTypedArray()
             )
