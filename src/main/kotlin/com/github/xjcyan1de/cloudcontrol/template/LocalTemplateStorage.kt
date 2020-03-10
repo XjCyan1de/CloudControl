@@ -32,4 +32,8 @@ object LocalTemplateStorage : TemplateStorage {
         }
         return Files.newOutputStream(file, StandardOpenOption.CREATE)
     }
+
+    override fun deploy(directory: File, template: ServiceTemplate, predicate: (File) -> Boolean) {
+        TODO("Not yet implemented")
+    }
 }

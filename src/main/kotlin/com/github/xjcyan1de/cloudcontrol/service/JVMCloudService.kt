@@ -50,6 +50,7 @@ class JVMCloudService(
 
     init {
         directory.mkdirs()
+        initializeAndPrepare()
     }
 
     fun initializeAndPrepare() {
@@ -321,6 +322,7 @@ class JVMCloudService(
 
     private fun File.copyDefaultFile(path: String? = null) = apply {
         if (!this.exists() && this.createNewFile() && path != null) {
+            println("Copy: $path")
             javaClass.classLoader.getResourceAsStream(path)?.use {
                 Files.copy(it, toPath())
             }

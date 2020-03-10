@@ -35,6 +35,8 @@ object CloudControlNode : CloudControlDriver {
     override lateinit var lastNetworkNodeSnapshot: NetworkNodeSnapshot
 
     override fun start() {
+        Runtime.getRuntime().addShutdownHook(thread(start = false, name = "Shutdown Thread") { stop() })
+
         networkNodeConfiguration = NetworkNodeConfiguration.load()
         currentNetworkNodeSnapshot = createNetworkNodeSnapshot()
         lastNetworkNodeSnapshot = currentNetworkNodeSnapshot
@@ -48,8 +50,6 @@ object CloudControlNode : CloudControlDriver {
         localDirectory.mkdirs()
 
         File(tempDirectory, "caches").mkdir()
-
-        Runtime.getRuntime().addShutdownHook(thread(name = "Shutdown Thread") { stop() })
 
         mainLoop()
     }
@@ -136,8 +136,9 @@ object CloudControlNode : CloudControlDriver {
             val minServiceCount = task.minServiceCount
             val taskServices = task.cloudServices
             val runningServices = taskServices.filter { it.lifeCycle == ServiceLifeCycle.RUNNING }
+            val currentNode = networkNodeConfiguration.identity
 
-            if (nodes.isEmpty() || (nodes.contains(networkNodeConfiguration.identity) && minServiceCount > runningServices.size)) {
+            if (nodes.isEmpty() || (nodes.contains(currentNode) && minServiceCount > runningServices.size)) {
                 val localServices = CloudServiceManager.getLocalCloudServices(task)
                 val notStartedService = localServices.find {
                     it.lifeCycle == ServiceLifeCycle.DEFINED || it.lifeCycle == ServiceLifeCycle.PREPARED

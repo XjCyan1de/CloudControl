@@ -83,7 +83,7 @@ object ConfigurationManager {
                     println(textOf("cloud_control.load.task", "path" to { file.toString() }).get())
                     ConfigFactory.parseFile(file).extract<ServiceTask>("task").also {
                         println(
-                            textOf("cloud_control.load.success",
+                            textOf("cloud_control.load.task.success",
                                 "path" to { file.toString() },
                                 "name" to { it.name }).get()
                         )

@@ -61,7 +61,7 @@ class NetworkNodeConfiguration(
         "-Dio.netty.recycler.maxCapacity.default=0",
         "-DIReallyKnowWhatIAmDoingISwear=true"
     ),
-    jvmCommand: String = if (RUNTIME_JVM_COMMAND != null) RUNTIME_JVM_COMMAND!! else "java"
+    jvmCommand: String = RUNTIME_JVM_COMMAND
 ) {
     var identity by ConfigSaver(
         identity
