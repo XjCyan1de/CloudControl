@@ -36,4 +36,25 @@ object LocalTemplateStorage : TemplateStorage {
     override fun deploy(directory: File, template: ServiceTemplate, predicate: (File) -> Boolean) {
         TODO("Not yet implemented")
     }
+
+    override fun create(template: ServiceTemplate): Boolean {
+        val directory = File(storageDirectory, template.templatePath)
+
+        return if (directory.exists()) {
+            false
+        } else directory.mkdirs()
+    }
+
+    override fun listFiles(template: ServiceTemplate, dir: String): Iterable<String> =
+        storageDirectory.toPath().resolve(template.templatePath).resolve(dir).toFile().listFiles()?.map { it.path }
+            ?: emptyList()
+
+    override fun deleteFile(template: ServiceTemplate, path: String): Boolean {
+        val file = storageDirectory.toPath().resolve(template.templatePath).resolve(path).toFile()
+        if (!file.exists()) {
+            return false
+        }
+        file.deleteRecursively()
+        return true
+    }
 }

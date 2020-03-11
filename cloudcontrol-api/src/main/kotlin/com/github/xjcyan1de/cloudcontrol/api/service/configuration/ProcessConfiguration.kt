@@ -4,6 +4,7 @@ import com.github.xjcyan1de.cloudcontrol.api.service.ServiceEnvironment
 
 data class ProcessConfiguration(
     val environment: ServiceEnvironment = ServiceEnvironment.PAPER,
+    val version: String = "latest",
     val maxHeapMemorySize: Int = environment.defaultMaxHeapMemory,
     val jvmOptions: List<String> = emptyList()
 ) {

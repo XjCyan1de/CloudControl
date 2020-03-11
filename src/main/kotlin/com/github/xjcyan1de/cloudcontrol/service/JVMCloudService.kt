@@ -8,6 +8,7 @@ import com.github.xjcyan1de.cloudcontrol.api.network.NetworkAddress
 import com.github.xjcyan1de.cloudcontrol.api.service.*
 import com.github.xjcyan1de.cloudcontrol.api.service.configuration.ServiceConfiguration
 import com.github.xjcyan1de.cloudcontrol.api.util.SystemStatistics
+import com.github.xjcyan1de.cloudcontrol.checkUpdate
 import com.github.xjcyan1de.cloudcontrol.service.configuration.BungeeConfigurator
 import com.github.xjcyan1de.cloudcontrol.service.configuration.NMSConfigurator
 import com.github.xjcyan1de.cloudcontrol.template.getStorage
@@ -28,7 +29,9 @@ class JVMCloudService(
 ) {
     val templates: List<ServiceTemplate> = ArrayList()
     val deployments: MutableList<ServiceDeployment> = ArrayList()
-    val waitingTemplates: Queue<ServiceTemplate> = ConcurrentLinkedQueue()
+    val waitingTemplates: Queue<ServiceTemplate> = ConcurrentLinkedQueue<ServiceTemplate>().apply {
+        addAll(serviceConfiguration.templates)
+    }
     val groups: List<ServiceGroup> = ArrayList()
     var lifeCycle: ServiceLifeCycle = ServiceLifeCycle.DEFINED
     val serviceId: ServiceId = serviceConfiguration.serviceId
@@ -144,6 +147,7 @@ class JVMCloudService(
             val template = waitingTemplates.poll()
             val storage = getStorage(template.storage)
 
+            template.checkUpdate()
             if (!storage.has(template)) {
                 continue
             }

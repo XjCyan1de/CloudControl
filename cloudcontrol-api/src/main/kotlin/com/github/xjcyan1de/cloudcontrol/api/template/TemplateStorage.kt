@@ -10,4 +10,7 @@ interface TemplateStorage {
     fun has(template: ServiceTemplate): Boolean
     fun newOutputStream(template: ServiceTemplate, path: Path): OutputStream
     fun deploy(directory: File, template: ServiceTemplate, predicate: (File) -> Boolean)
+    fun create(template: ServiceTemplate): Boolean
+    fun listFiles(template: ServiceTemplate, dir: String = ""): Iterable<String>
+    fun deleteFile(template: ServiceTemplate, path: String): Boolean
 }

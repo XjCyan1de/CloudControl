@@ -1,11 +1,18 @@
 package com.github.xjcyan1de.cloudcontrol
 
 import com.github.xjcyan1de.cloudcontrol.api.console.Console
+import com.github.xjcyan1de.cloudcontrol.api.service.ServiceEnvironment
+import com.github.xjcyan1de.cloudcontrol.api.service.ServiceTemplate
+import com.github.xjcyan1de.cloudcontrol.api.template.TemplateStorage
 import com.github.xjcyan1de.cloudcontrol.console.animation.question.QuestionListEntry
 import com.github.xjcyan1de.cloudcontrol.console.animation.question.answer.QuestionAnswerTypeString
+import com.github.xjcyan1de.cloudcontrol.template.getStorage
 import com.github.xjcyan1de.cyanlibz.localization.textOf
+import java.io.IOException
 import java.net.InetAddress
 import java.net.NetworkInterface
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -51,5 +58,29 @@ class DefaultInstallation {
             ))
         }
     }
+}
 
+fun ServiceTemplate.checkUpdate() {
+    if (lastUpdate.isBefore(Instant.now().minus(30, ChronoUnit.MINUTES))) {
+        lastUpdate = Instant.now()
+        val storage = getStorage(storage)
+
+        if (!storage.has(this)) {
+            storage.create(this)
+        }
+    }
+}
+
+private fun removeJars(storage: TemplateStorage, template: ServiceTemplate) {
+    try {
+        for (file in storage.listFiles(template)) {
+            for (environment in ServiceEnvironment.values()) {
+                if (file.toLowerCase().contains(environment.name) && file.endsWith(".jar")) {
+                    storage.deleteFile(template, file)
+                }
+            }
+        }
+    } catch (exception: IOException) {
+        exception.printStackTrace()
+    }
 }
